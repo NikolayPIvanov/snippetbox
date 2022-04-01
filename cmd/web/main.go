@@ -1,22 +1,45 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
+	"os"
 )
 
+type Config struct {
+	Addr      string
+	StaticDir string
+}
+
+// Define an application struct to hold the application-wide dependencies for the
+// web application. For now we'll only include fields for the two custom loggers, but
+// we'll add more to it as the build progresses.
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
+
 func main() {
-	// Register the two new handler functions and corresponding URL patterns with
-	// the servemux, in exactly the same way that we did before.
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/snippet", showSnippet)
-	mux.HandleFunc("/snippet/create", createSnippet)
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	flag.Parse()
 
-	fileServer := http.FileServer(http.Dir("../../ui/static/"))
-	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	log.Println("Starting server on :4000")
-	err := http.ListenAndServe(":4000", mux)
-	log.Fatal(err)
+	// Initialize a new instance of application containing the dependencies.
+	app := &application{
+		errorLog: errorLog,
+		infoLog:  infoLog,
+	}
+
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(), // Call the new app.routes() method
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err)
 }
