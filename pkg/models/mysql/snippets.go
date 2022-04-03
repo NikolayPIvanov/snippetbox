@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"nikolay.ivanov/snippetbox/pkg/models"
+	"NikolayPIvanov/snippetbox/pkg/models"
 )
 
 // Define a SnippetModel type which wraps a sql.DB connection pool.
@@ -75,5 +75,34 @@ func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
 
 // This will return the 10 most recently created snippets.
 func (m *SnippetModel) Latest() ([]*models.Snippet, error) {
-	return nil, nil
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+			 WHERE expires > UTC_TIMESTAMP() ORDER BY created DESC LIMIT 10`
+	rows, err := m.DB.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	snippets := []*models.Snippet{}
+	for rows.Next() {
+		// Create a pointer to a new zeroed Snippet struct.
+		s := &models.Snippet{}
+		// Use rows.Scan() to copy the values from each field in the row to the
+		// new Snippet object that we created. Again, the arguments to row.Scan()
+		// must be pointers to the place you want to copy the data into, and the
+		// number of arguments must be exactly the same as the number of
+		// columns returned by your statement.
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+		// Append it to the slice of snippets.
+		snippets = append(snippets, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return snippets, nil
 }

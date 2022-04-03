@@ -1,40 +1,32 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
+
+	"NikolayPIvanov/snippetbox/pkg/models"
 )
 
 // Define a home handler function which writes a byte slice containing
 // "Hello from Snippetbox" as the response body.
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		app.notFound(w)
 		return
 	}
 
-	// Initialize a slice containing the paths to the two files. Note that the
-	// home.page.tmpl file must be the *first* file in the slice.
-	files := []string{
-		"../../ui/html/home.page.tmpl",
-		"../../ui/html/base.layout.tmpl",
-		"../../ui/html/footer.partial.tmpl",
-	}
-
-	ts, err := template.ParseFiles(files...)
+	s, err := app.snippets.Latest()
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
-	// We then use the Execute() method on the template set to write the template
-	// content as the response body. The last parameter to Execute() represents any
-	// dynamic data that we want to pass in, which for now we'll leave as nil.
-	err = ts.Execute(w, nil)
-	if err != nil {
-		app.serverError(w, err)
-	}
+
+	// Use the new render helper.
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
 }
 
 // Add a showSnippet handler function.
@@ -45,7 +37,20 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// Use the new render helper.
+	app.render(w, r, "show.page.tmpl", &templateData{
+		Snippet: s,
+	})
 }
 
 // Add a createSnippet handler function.
