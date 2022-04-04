@@ -20,7 +20,7 @@ func main() {
 	for end := date.AddDate(*years, 0, 0); end.After(date); {
 		earn := *capital * *interest / float64(100.0)
 		*capital += earn
-		fmt.Printf("At %s you have %.2f\n", date.String(), *capital)
+		fmt.Printf("At %s you have %.2f. Need to earn %.2f\n", date.String(), *capital, earn)
 
 		if *notifyAt > 0 && *capital >= *notifyAt {
 			break
