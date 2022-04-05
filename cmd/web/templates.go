@@ -15,11 +15,13 @@ import (
 // At the moment it only contains one field, but we'll add more
 // to it as the build progresses.
 type templateData struct {
-	CurrentYear int
-	Form        *forms.Form
-	Flash       string
-	Snippet     *models.Snippet
-	Snippets    []*models.Snippet
+	CSRFToken       string
+	CurrentYear     int
+	Form            *forms.Form
+	Flash           string
+	IsAuthenticated bool
+	Snippet         *models.Snippet
+	Snippets        []*models.Snippet
 }
 
 // Create a humanDate function which returns a nicely formatted string
