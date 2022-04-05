@@ -2,13 +2,14 @@ package forms
 
 import (
 	"fmt"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 )
 
-var EmailRX = regexp.MustCompile("^[a-zA-Z0-9.! #$%&'*+/=? ^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\. [a-zA-Z0-9-]+)*$")
+var EmailRgx *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 // Create a custom Form struct, which anonymously embeds a url.Values object
 // (to hold the form data) and an Errors field to hold any validation errors
@@ -46,9 +47,6 @@ func (f *Form) MinLength(field string, d int) {
 	}
 }
 
-// Implement a MaxLength method to check that a specific field in the form
-// contains a maximum number of characters. If the check fails then add the
-// appropriate message to the form errors.
 func (f *Form) MaxLength(field string, d int) {
 	value := f.Get(field)
 	if value == "" {
@@ -56,6 +54,13 @@ func (f *Form) MaxLength(field string, d int) {
 	}
 	if utf8.RuneCountInString(value) > d {
 		f.Errors.Add(field, fmt.Sprintf("This field is too long (maximum is %d characters)", d))
+	}
+}
+
+func (f *Form) IsValidMail(field string) {
+	_, err := mail.ParseAddress(field)
+	if err != nil {
+		f.Errors.Add(field, "This field is invalid")
 	}
 }
 
@@ -69,9 +74,6 @@ func (f *Form) MatchesPattern(field string, pattern *regexp.Regexp) {
 	}
 }
 
-// Implement a PermittedValues method to check that a specific field in the form
-// matches one of a set of specific permitted values. If the check fails
-// then add the appropriate message to the form errors.
 func (f *Form) PermittedValues(field string, opts ...string) {
 	value := f.Get(field)
 	if value == "" {

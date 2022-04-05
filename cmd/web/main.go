@@ -1,17 +1,18 @@
 package main
 
 import (
-	"NikolayPIvanov/snippetbox/pkg/models/mysql"
+	localSql "NikolayPIvanov/snippetbox/pkg/models/sql"
 	"crypto/tls"
 	"database/sql"
 	"flag"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/golangcollege/sessions"
 )
 
@@ -28,27 +29,44 @@ type application struct {
 	errorLog      *log.Logger
 	infoLog       *log.Logger
 	session       *sessions.Session
-	snippets      *mysql.SnippetModel
-	users         *mysql.UserModel
+	snippets      *localSql.SnippetModel
+	users         *localSql.UserModel
 	templateCache map[string]*template.Template
 }
 
+var (
+	serverPort      = flag.Int("server_port", 4000, "HTTP network port")
+	secret          = flag.String("secret", "s6Ndh+pPbnzHbS*+9Pk8qGWhTzbpa@ge", "Secret key")
+	password        = flag.String("password", "", "the database password")
+	port       *int = flag.Int("port", 1433, "the database port")
+	server          = flag.String("server", "", "the database server")
+	user            = flag.String("user", "", "the database user")
+)
+
 func main() {
-	addr := flag.String("addr", ":4000", "HTTP network address")
-	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
-	secret := flag.String("secret", "s6Ndh+pPbnzHbS*+9Pk8qGWhTzbpa@ge", "Secret key")
+	debug := flag.Bool("debug", false, "enable debugging")
+
 	flag.Parse()
+
+	if *debug {
+		fmt.Printf(" password:%s\n", *password)
+		fmt.Printf(" port:%d\n", *port)
+		fmt.Printf(" server:%s\n", *server)
+		fmt.Printf(" user:%s\n", *user)
+	}
+
+	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=snippetbox",
+		*server, *user, *password, *port)
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	db, err := openDB(*dsn)
+	db, err := openDB(connString)
 	if err != nil {
 		errorLog.Fatal(err)
 	}
 	defer db.Close()
 
-	// Initialize a new template cache...
 	templateCache, err := newTemplateCache("./ui/html/")
 	if err != nil {
 		errorLog.Fatal(err)
@@ -60,8 +78,8 @@ func main() {
 	app := &application{
 		errorLog:      errorLog,
 		infoLog:       infoLog,
-		snippets:      &mysql.SnippetModel{DB: db},
-		users:         &mysql.UserModel{DB: db},
+		snippets:      &localSql.SnippetModel{DB: db},
+		users:         &localSql.UserModel{DB: db},
 		session:       session,
 		templateCache: templateCache,
 	}
@@ -72,7 +90,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:         *addr,
+		Addr:         fmt.Sprint(*serverPort),
 		ErrorLog:     errorLog,
 		Handler:      app.routes(),
 		TLSConfig:    tlsConfig,
@@ -81,16 +99,17 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	infoLog.Printf("Starting server on %s", *addr)
+	infoLog.Printf("Starting server on %d", *serverPort)
 	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
 	errorLog.Fatal(err)
 }
 
 func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open("sqlserver", dsn)
 	if err != nil {
 		return nil, err
 	}
+
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}

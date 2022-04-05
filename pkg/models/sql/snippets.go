@@ -1,8 +1,9 @@
-package mysql
+package sql
 
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"NikolayPIvanov/snippetbox/pkg/models"
 )
@@ -17,22 +18,18 @@ func (m *SnippetModel) Insert(title, content, expires string) (int, error) {
 	// Write the SQL statement we want to execute. I've split it over two lines
 	// for readability (which is why it's surrounded with backquotes instead
 	// of normal double quotes).
-	stmt := `INSERT INTO snippets (title, content, created, expires)
-			 VALUES(?, ?, UTC_TIMESTAMP(), DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY))`
+	stmt := fmt.Sprintf(`INSERT INTO snippets (title, content, created, expires)
+	VALUES('%s', '%s', GETUTCDATE(), DATEADD(day, %s, GETUTCDATE())); select ID = convert(bigint, SCOPE_IDENTITY())`,
+		title, content, expires)
 	// Use the Exec() method on the embedded connection pool to execute the
 	// statement. The first parameter is the SQL statement, followed by the
 	// title, content and expiry values for the placeholder parameters. This
 	// method returns a sql.Result object, which contains some basic
 	// information about what happened when the statement was executed.
-	result, err := m.DB.Exec(stmt, title, content, expires)
-	if err != nil {
-		return 0, err
-	}
-	// Use the LastInsertId() method on the result object to get the ID of our
-	// newly inserted record in the snippets table.
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
+	id := 0
+	m.DB.QueryRow(stmt, title, content, expires).Scan(&id)
+	if id == 0 {
+		return id, errors.New("Could not insert")
 	}
 	// The ID returned has the type int64, so we convert it to an int type
 	// before returning.
@@ -43,8 +40,8 @@ func (m *SnippetModel) Insert(title, content, expires string) (int, error) {
 func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
 	// Write the SQL statement we want to execute. Again, I've split it over two
 	// lines for readability.
-	stmt := `SELECT id, title, content, created, expires FROM snippets
-			 WHERE expires > UTC_TIMESTAMP() AND id = ?`
+	stmt := fmt.Sprintf(`SELECT id, title, content, created, expires FROM snippets
+	WHERE expires > GETUTCDATE() AND id = '%d'`, id)
 	// Use the QueryRow() method on the connection pool to execute our
 	// SQL statement, passing in the untrusted id variable as the value for the
 	// placeholder parameter. This returns a pointer to a sql.Row object which
@@ -75,8 +72,8 @@ func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
 
 // This will return the 10 most recently created snippets.
 func (m *SnippetModel) Latest() ([]*models.Snippet, error) {
-	stmt := `SELECT id, title, content, created, expires FROM snippets
-			 WHERE expires > UTC_TIMESTAMP() ORDER BY created DESC LIMIT 10`
+	stmt := `SELECT TOP 10 id, title, content, created, expires FROM snippets
+			 WHERE expires > GETUTCDATE() ORDER BY created DESC`
 	rows, err := m.DB.Query(stmt)
 	if err != nil {
 		return nil, err

@@ -35,6 +35,5 @@ func main() {
 		default:
 			date = date.AddDate(1, 0, 0)
 		}
-
 	}
 }

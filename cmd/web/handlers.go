@@ -114,7 +114,7 @@ func (app *application) signupUser(w http.ResponseWriter, r *http.Request) {
 	form.Required("name", "email", "password")
 	form.MaxLength("name", 255)
 	form.MaxLength("email", 255)
-	form.MatchesPattern("email", forms.EmailRX)
+	form.MatchesPattern("email", forms.EmailRgx)
 	form.MinLength("password", 10)
 	// If there are any errors, redisplay the signup form.
 	if !form.Valid() {
@@ -157,6 +157,7 @@ func (app *application) loginUser(w http.ResponseWriter, r *http.Request) {
 	// message to the form failures map and re-display the login page.
 	form := forms.New(r.PostForm)
 	id, err := app.users.Authenticate(form.Get("email"), form.Get("password"))
+	fmt.Printf("Got %d\r\n", id)
 	if err != nil {
 		if errors.Is(err, models.ErrInvalidCredentials) {
 			form.Errors.Add("generic", "Email or Password is incorrect")
@@ -181,4 +182,8 @@ func (app *application) logoutUser(w http.ResponseWriter, r *http.Request) {
 	// logged out.
 	app.session.Put(r, "flash", "You've been logged out successfully!")
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func ping(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK"))
 }
