@@ -6,14 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	// New import
-	// New import
 	"NikolayPIvanov/snippetbox/pkg/forms"
 	"NikolayPIvanov/snippetbox/pkg/models"
 )
 
-// Define a home handler function which writes a byte slice containing
-// "Hello from Snippetbox" as the response body.
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	s, err := app.snippets.Latest()
 	if err != nil {
@@ -21,13 +17,11 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the new render helper.
 	app.render(w, r, "home.page.tmpl", &templateData{
 		Snippets: s,
 	})
 }
 
-// Add a showSnippet handler function.
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get(":id"))
 	if err != nil || id < 1 {
@@ -45,21 +39,17 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the new render helper.
 	app.render(w, r, "show.page.tmpl", &templateData{
 		Snippet: s,
 	})
 }
 
-// Add a new createSnippetForm handler, which for now returns a placeholder response.
 func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "create.page.tmpl", &templateData{
-		// Pass a new empty forms.Form object to the template.
 		Form: forms.New(nil),
 	})
 }
 
-// Add a createSnippet handler function.
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -67,23 +57,16 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a new forms.Form struct containing the POSTed data from the
-	// form, then use the validation methods to check the content.
 	form := forms.New(r.PostForm)
 	form.Required("title", "content", "expires")
 	form.MaxLength("title", 100)
 	form.PermittedValues("expires", "365", "7", "1")
 
-	// If the form isn't valid, redisplay the template passing in the
-	// form.Form object as the data.
 	if !form.Valid() {
 		app.render(w, r, "create.page.tmpl", &templateData{Form: form})
 		return
 	}
 
-	// Because the form data (with type url.Values) has been anonymously embedded
-	// in the form.Form struct, we can use the Get() method to retrieve
-	// the validated value for a particular form field.
 	id, err := app.snippets.Insert(form.Get("title"), form.Get("content"), form.Get("expires"))
 	if err != nil {
 		app.serverError(w, err)
@@ -92,7 +75,6 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 
 	app.session.Put(r, "flash", "Snippet successfully created!")
 
-	// Redirect the user to the relevant page for the snippet.
 	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
 }
 
@@ -103,20 +85,19 @@ func (app *application) signupUserForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) signupUser(w http.ResponseWriter, r *http.Request) {
-	// Parse the form data.
 	err := r.ParseForm()
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
-	// Validate the form contents using the form helper we made earlier.
+
 	form := forms.New(r.PostForm)
 	form.Required("name", "email", "password")
 	form.MaxLength("name", 255)
 	form.MaxLength("email", 255)
 	form.MatchesPattern("email", forms.EmailRgx)
 	form.MinLength("password", 10)
-	// If there are any errors, redisplay the signup form.
+
 	if !form.Valid() {
 		app.render(w, r, "signup.page.tmpl", &templateData{Form: form})
 		return
@@ -133,11 +114,8 @@ func (app *application) signupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Otherwise add a confirmation flash message to the session confirming that
-	// their signup worked and asking them to log in.
 	app.session.Put(r, "flash", "Your signup was successful. Please log in.")
 
-	// And redirect the user to the login page.
 	http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 }
 
@@ -153,8 +131,7 @@ func (app *application) loginUser(w http.ResponseWriter, r *http.Request) {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
-	// Check whether the credentials are valid. If they're not, add a generic error
-	// message to the form failures map and re-display the login page.
+
 	form := forms.New(r.PostForm)
 	id, err := app.users.Authenticate(form.Get("email"), form.Get("password"))
 	fmt.Printf("Got %d\r\n", id)
@@ -167,19 +144,13 @@ func (app *application) loginUser(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	// Add the ID of the current user to the session, so that they are now 'logged
-	// in'.
+
 	app.session.Put(r, "authenticatedUserID", id)
-	// Redirect the user to the create snippet page.
 	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
 }
 
 func (app *application) logoutUser(w http.ResponseWriter, r *http.Request) {
-	// Remove the authenticatedUserID from the session data so that the user is
-	// 'logged out'.
 	app.session.Remove(r, "authenticatedUserID")
-	// Add a flash message to the session to confirm to the user that they've been
-	// logged out.
 	app.session.Put(r, "flash", "You've been logged out successfully!")
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
