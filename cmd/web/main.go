@@ -90,7 +90,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:         fmt.Sprint(*serverPort),
+		Addr:         fmt.Sprintf(":%d", *serverPort),
 		ErrorLog:     errorLog,
 		Handler:      app.routes(),
 		TLSConfig:    tlsConfig,
